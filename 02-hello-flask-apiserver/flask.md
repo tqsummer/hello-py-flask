@@ -102,7 +102,7 @@ app.register_blueprint(bank.blue, url_prefix="/bank")
 ，对于/find路由来说的，应该是/bank的子路径，访问全路径是http://localhost:
 8801/bank/find。
 
-### 1.1.1路由path中的参数
+#### 1.1.1路由path中的参数
 
 语法：
 
@@ -112,10 +112,19 @@ def find(word):
     pass
 ```
 
-converter是参数的转换器，一般是指定的类型，如string,int,float,path
-string是默认参数转换器
-@app.route('/find/<word>', methods=['GET'])
+converter是参数的转换器，一般是指定的类型，如string,int,float,path,uuid,any等
+string是默认参数转换器  
+@app.route('/find/<word>', methods=['GET'])  
 这时使用的是string参数转换器
+
+path路径中可以接收多个参数转换器  
+例：
+
+```python
+@app.route('/find/<string:word>/<int:page>', methods=['GET'])
+def find(word, page):
+    pass
+```
 
 | Converter | Description                                      |
 |-----------|--------------------------------------------------|
@@ -131,9 +140,10 @@ string是默认参数转换器
 "path": PathConverter,  
 "int": IntegerConverter,  
 "float": FloatConverter,  
-"uuid": UUIDConverter,  
+"uuid": UUIDConverter,
 
 可以配置自定义参数转换器
+
 ```python
 # 1
 # custom_converter.py中定义自定义参数转换器
@@ -187,6 +197,120 @@ def forward(url):
 
 以上路由配置，对于/forward/http://www.baidu.com，是合法的，
 
-### request
+#### 1.1.2 路由中的请求方法
 
-### response
+路由中的请求方法是通过methods设置的，眀要求是list类型  
+没有指定methods，默认值为methods=["GET","OPTIONS"]
+
+常用的请求方法：
+
+* GET：查询数据时使用，URL可以传的参数大小有限制，1M以内，参数显示在URL中。
+* POST：添加或编辑数据时使用，可以上传超过1G的大数据，且以表单参数的方式上传并不显示在请求地址中，相比GET，请求数据更安全且支持大数据或文件。
+* PUT：更新数据时使用
+* PATCH：更新部分数据时使用
+* DELETE：删除数据时使用
+
+```python
+@app.route('/delete/<int:bank_id>', methods=['DELETE'])
+def delete_bank(bank_id):
+    return "delete {}".format(bank_id)
+```
+
+#### 1.1.3 路由的反向解析
+
+```python
+@blue.route('/add/<bank_name>')
+def add_card(bank_name):
+    return "%s 开户成功！" % (bank_name)
+
+
+@blue.route('select_bank')
+def select_bank():
+    bank_name = "招商银行"
+    return """
+    选择银行成功，3秒后<a href ="%s">进入开户页</a>
+    """ % (url_for("cardBlue.add_card", bank_name=bank_name))
+```
+
+通过url_for反向解析获取url
+url_for("函数名",**kwargs) 反向解析获取flask的路由注册的路径
+url_for("蓝图名"."函数名",**kwargs) 反向解析指定蓝图的路由注册的路径
+
+```python
+# server.py
+
+# 配置主页
+@app.route("/")
+def index():
+    return """
+    <ul>
+        <li><a href="%s">用户管理</a></li>
+        <li><a href="%s">银行管理</a></li>
+        <li><a href="%s">银行卡管理</a></li>
+    </ul>
+    """ % (url_for("userBlue.user", user_id=1),
+           url_for("bankBlue.find_all"),
+           url_for("cardBlue.select_bank"))
+```
+
+#### 单元测试
+
+创建单元测试类，对重要功能进行测试
+
+针对PUT/DELETE/POST/GET等HTTP请求接口测试，可以使用requests库
+
+```shell
+# 安装requests模块
+pip install requests
+```
+
+requests库中提供相关函数，函数的名称与请求方法是一一对应，可以使用request.request()调用所有的method方法
+
+```python
+from unittest import TestCase
+
+import requests
+
+
+# 继承TestCase类
+class TestBank(TestCase):
+
+    # 声明单元测试方法
+    # 方法名以test_开头
+    def test_del(self):
+        url = "http://localhost:8801/bank/delete_bank/100"
+        method = "DELETE"
+        resp = requests.request(method, url)
+
+        self.assertIs(resp.status_code, 200, "request fail")
+        print(resp.text)
+
+```
+
+### 1.2 请求对象 request
+
+```python
+from flask import request
+```
+
+请求对象本质上是封装客户端发送的请求数据，在flask中由werkzeug库（实现python的WSGI接口）封装的，包含请求的路径，请求头，请求方法，请求中中包含Cookies、请求参数、上传的数据。
+
+一个请求对象中包含数据的属性一般都是dict类型。如：
+
+* request.args查询参数，url路径中使用?和&分融的查询参数
+* request.form 表单参数，一般是post请求方法包含的数据
+* request.headers 请求头
+* request.cookies Cookies数据
+* request.files 上传的文件数据
+* request.method 请求方法 方法名为字母大写
+* request.url 请求的路径
+
+request.url有几种情况：
+
+* url   :完整的请求路径 http://localhost:8801/bank/find?bank_id=1
+* base_url :去掉get参数的路径 http://localhost:8801/bank/find
+* host_url :只有主机和端的路径 http://localhost:8801
+* path :路由中的路径 /bank/find
+
+### 1.3 响应对象 response   
+

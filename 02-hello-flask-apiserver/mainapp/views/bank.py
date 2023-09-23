@@ -93,6 +93,11 @@ def delete():
     return "<h3>Delete Bank-Blue : %s</h3> " % (bank_id,)
 
 
+@blue.route('/delete_bank/<int:bank_id>', methods=['DELETE'])
+def delete_bank(bank_id):
+    return "<h3>Delete Bank-Blue : %s</h3> " % (bank_id,)
+
+
 @blue.route('/edit/<int:bank_id>', methods=['GET'])
 def edit(bank_id):
     return "editing : %s" % (bank_id,)
